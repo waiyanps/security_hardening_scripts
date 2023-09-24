@@ -2,14 +2,26 @@ To ensure that the Datagram Congestion Control Protocol (DCCP) is disabled on a 
 
 #!/bin/bash
 
-# Check if DCCP is currently enabled
-if lsmod | grep -q dccp; then
-    echo "DCCP is currently enabled. Disabling..."
-    # Disable DCCP kernel module
-    sudo modprobe -r dccp
-else
-    echo "DCCP is already disabled."
-fi
+# Define an array of modules to check and disable
+modules=("tipc" "sctp" "dccp")
+
+# Function to disable a kernel module if it's currently enabled
+disable_module() {
+    local module_name="$1"
+    if lsmod | grep -q "$module_name"; then
+        echo "$module_name is currently enabled. Disabling..."
+        sudo modprobe -r "$module_name"
+    else
+        echo "$module_name is already disabled."
+    fi
+}
+
+# Iterate through the array and disable each module
+for module in "${modules[@]}"; do
+    disable_module "$module"
+done
+
+echo "TIPC, SCTP, and DCCP are disabled."
 
 To ensure that the SSH LoginGraceTime is set to 1 minute (1m) if its default value is greater than 1 minute, you can create a Bash script as follows:
 
@@ -167,38 +179,38 @@ fi
 
 echo "Lockout for failed password attempts is configured."
 
-To ensure that TIPC, SCTP, and DCCP are disabled on a Linux system, you can create a Bash script that unloads the corresponding kernel modules if they are currently loaded. Here's a script to achieve this:
+# To ensure that TIPC, SCTP, and DCCP are disabled on a Linux system, you can create a Bash script that unloads the corresponding kernel modules if they are currently loaded. Here's a script to achieve this:
 
-#!/bin/bash
+# #!/bin/bash
 
-# Check if TIPC is currently enabled
-if lsmod | grep -q tipc; then
-    echo "TIPC is currently enabled. Disabling..."
-    # Disable TIPC kernel module
-    sudo modprobe -r tipc
-else
-    echo "TIPC is already disabled."
-fi
+# # Check if TIPC is currently enabled
+# if lsmod | grep -q tipc; then
+#     echo "TIPC is currently enabled. Disabling..."
+#     # Disable TIPC kernel module
+#     sudo modprobe -r tipc
+# else
+#     echo "TIPC is already disabled."
+# fi
 
-# Check if SCTP is currently enabled
-if lsmod | grep -q sctp; then
-    echo "SCTP is currently enabled. Disabling..."
-    # Disable SCTP kernel module
-    sudo modprobe -r sctp
-else
-    echo "SCTP is already disabled."
-fi
+# # Check if SCTP is currently enabled
+# if lsmod | grep -q sctp; then
+#     echo "SCTP is currently enabled. Disabling..."
+#     # Disable SCTP kernel module
+#     sudo modprobe -r sctp
+# else
+#     echo "SCTP is already disabled."
+# fi
 
-# Check if DCCP is currently enabled
-if lsmod | grep -q dccp; then
-    echo "DCCP is currently enabled. Disabling..."
-    # Disable DCCP kernel module
-    sudo modprobe -r dccp
-else
-    echo "DCCP is already disabled."
-fi
+# # Check if DCCP is currently enabled
+# if lsmod | grep -q dccp; then
+#     echo "DCCP is currently enabled. Disabling..."
+#     # Disable DCCP kernel module
+#     sudo modprobe -r dccp
+# else
+#     echo "DCCP is already disabled."
+# fi
 
-echo "TIPC, SCTP, and DCCP are disabled."
+# echo "TIPC, SCTP, and DCCP are disabled."
 
 
 To disable support for the Reliable Datagram Sockets (RDS) protocol on a Linux system, you can create a Bash script that unloads the RDS kernel module and prevents it from being loaded on boot. Here's a script to achieve this:
