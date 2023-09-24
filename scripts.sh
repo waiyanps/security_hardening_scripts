@@ -57,8 +57,42 @@ for fs in "${unnecessary_file_systems[@]}"; do
 done
 
 echo "Installation and use of unnecessary file systems (hfs, freevxfs, jffs, cramfs) are disabled."
+#!/bin/bash
 
+# List of services to disable
+services=("dovecot" "portmap" "cups" "avahi-daemon")
 
+# Disable each service
+for service in "${services[@]}"; do
+    if sudo systemctl is-active --quiet "$service"; then
+        echo "Disabling $service..."
+        sudo systemctl stop "$service"
+        sudo systemctl disable "$service"
+    else
+        echo "$service is already disabled or not installed."
+    fi
+done
+
+echo "Dovecot, Portmap, CUPS, and Avahi services are disabled."
+
+Bash script to disable the specified services (Dovecot, Portmap, CUPS, and Avahi) on a Linux system.
+#!/bin/bash
+
+# List of services to disable
+services=("dovecot" "portmap" "cups" "avahi-daemon")
+
+# Disable each service
+for service in "${services[@]}"; do
+    if sudo systemctl is-active --quiet "$service"; then
+        echo "Disabling $service..."
+        sudo systemctl stop "$service"
+        sudo systemctl disable "$service"
+    else
+        echo "$service is already disabled or not installed."
+    fi
+done
+
+echo "Dovecot, Portmap, CUPS, and Avahi services are disabled."
 To ensure that the SSH LoginGraceTime is set to 1 minute (1m) if its default value is greater than 1 minute, you can create a Bash script as follows:
 
 #!/bin/bash
@@ -996,7 +1030,115 @@ secure_grub_bootloader() {
 # Call the secure_grub_bootloader function to apply the changes
 secure_grub_bootloader
 
+To ensure that the logrotate service is enabled and that the logrotate package is installed, you can create a Bash script. This script will also check and set the permissions and ownership for the logrotate cron entry. Here's the script:
 
+#!/bin/bash
+
+# Function to enable logrotate service and check cron entry
+enable_logrotate() {
+    # Check if logrotate is installed
+    if ! command -v logrotate &>/dev/null; then
+        # Install the logrotate package
+        sudo apt-get update
+        sudo apt-get install logrotate -y
+        echo "Installed logrotate package."
+    else
+        echo "logrotate is already installed."
+    fi
+
+    # Confirm that the logrotate cron entry is active
+    logrotate_cron="/etc/cron.daily/logrotate"
+    if [ -f "$logrotate_cron" ]; then
+        # Set the correct permissions and ownership
+        sudo chmod 755 "$logrotate_cron"
+        sudo chown root:root "$logrotate_cron"
+        echo "Set permissions and ownership for $logrotate_cron."
+    else
+        echo "$logrotate_cron not found."
+    fi
+
+    # Ensure the logrotate service is enabled (may vary by Linux distribution)
+    if command -v systemctl &>/dev/null; then
+        sudo systemctl enable logrotate
+        echo "Enabled logrotate service using systemctl."
+    elif command -v chkconfig &>/dev/null; then
+        sudo chkconfig logrotate on
+        echo "Enabled logrotate service using chkconfig."
+    else
+        echo "Unable to enable logrotate service (init system not supported)."
+    fi
+}
+
+# Call the enable_logrotate function to apply the changes
+enable_logrotate
+
+To set the /etc/shadow file permission to 0400, you can create a simple Bash script. Here's how you can do it:
+
+#!/bin/bash
+
+# Function to set permissions on /etc/shadow to 0400
+set_shadow_file_permissions() {
+    shadow_file="/etc/shadow"
+
+    # Check if /etc/shadow file exists
+    if [ -f "$shadow_file" ]; then
+        # Set the permissions to 0400 (readable only by root)
+        sudo chmod 0400 "$shadow_file"
+        echo "Set permissions on $shadow_file to 0400."
+    else
+        echo "$shadow_file does not exist."
+    fi
+}
+
+# Call the set_shadow_file_permissions function to apply the changes
+set_shadow_file_permissions
+
+To disable automounting and the autofs service, you can create a Bash script. Here's how you can do it:
+
+#!/bin/bash
+
+# Function to disable automounting and the autofs service
+disable_automount() {
+    # Check if autofs service is enabled and active (may vary by Linux distribution)
+    if command -v systemctl &>/dev/null; then
+        if sudo systemctl is-enabled autofs &>/dev/null && sudo systemctl is-active autofs &>/dev/null; then
+            # Disable and stop the autofs service
+            sudo systemctl disable autofs
+            sudo systemctl stop autofs
+            echo "Disabled and stopped the autofs service."
+        else
+            echo "autofs service is not enabled or active."
+        fi
+    elif command -v service &>/dev/null; then
+        if sudo service autofs status &>/dev/null; then
+            # Stop the autofs service (SysV-init)
+            sudo service autofs stop
+            echo "Stopped the autofs service (SysV-init)."
+        else
+            echo "autofs service is not active."
+        fi
+    else
+        echo "Unable to disable automount (init system not supported)."
+    fi
+
+    # Check if autofs package is installed and remove it
+    if command -v apt-get &>/dev/null; then
+        if dpkg -l | grep -q '^ii.*autofs '; then
+            sudo apt-get purge autofs -y
+            echo "Removed the autofs package."
+        fi
+    elif command -v yum &>/dev/null; then
+        if rpm -q autofs; then
+            sudo yum remove autofs -y
+            echo "Removed the autofs package."
+        fi
+    else
+        echo "Unable to remove the autofs package (package manager not supported)."
+    fi
+}
+
+# Call the disable_automount function to apply the changes
+disable_automount
 
 
 
