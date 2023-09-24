@@ -23,6 +23,42 @@ done
 
 echo "TIPC, SCTP, and DCCP are disabled."
 
+disable the installation and use of unnecessary file systems (hfs, freevxfs, jffs, cramfs) by blacklisting their kernel modules and preventing them from being loaded. Here's a script that accomplishes this and also includes a function:
+
+
+#!/bin/bash
+
+# Define the unnecessary file systems
+unnecessary_file_systems=("hfs" "freevxfs" "jffs" "cramfs")
+
+# Function to disable a kernel module and blacklist it
+disable_and_blacklist_module() {
+    local module_name="$1"
+    if lsmod | grep -q "$module_name"; then
+        echo "$module_name is currently enabled. Disabling..."
+        sudo modprobe -r "$module_name"
+    else
+        echo "$module_name is already disabled."
+    fi
+    
+    # Create a blacklist file for the module
+    blacklist_file="/etc/modprobe.d/blacklist-$module_name.conf"
+    if [ ! -f "$blacklist_file" ]; then
+        echo "Blacklisting $module_name..."
+        echo "blacklist $module_name" | sudo tee -a "$blacklist_file"
+    else
+        echo "$module_name is already blacklisted."
+    fi
+}
+
+# Iterate through the unnecessary file systems and disable/blacklist each module
+for fs in "${unnecessary_file_systems[@]}"; do
+    disable_and_blacklist_module "$fs"
+done
+
+echo "Installation and use of unnecessary file systems (hfs, freevxfs, jffs, cramfs) are disabled."
+
+
 To ensure that the SSH LoginGraceTime is set to 1 minute (1m) if its default value is greater than 1 minute, you can create a Bash script as follows:
 
 #!/bin/bash
