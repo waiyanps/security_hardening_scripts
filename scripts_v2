@@ -1,0 +1,152 @@
+#!/bin/bash
+AUDITDIR = "/tmp/$(hostname -s)_audit"
+TIME="$(date +%F_%T)"
+
+
+#!/bin/bash
+
+disable_protocols() {
+    protocols=("cramfs" "freevxfs" "hfs" "hfsplus" "jffs2" "tipc" "sctp" "dccp" "rds" "usb-storage")
+    
+    # Check if the CIS.conf file exists, and if not, create it
+    if [ ! -f /etc/modprobe.d/CIS.conf ]; then
+        touch /etc/modprobe.d/CIS.conf
+    fi
+    
+    for protocol in "${protocols[@]}"; do
+        # Check if the protocol is already disabled in CIS.conf
+        if grep -q "^install $protocol /bin/true" /etc/modprobe.d/CIS.conf; then
+            echo "[PASS] -- $protocol is already disabled."
+        else
+            # Ask the user if they want to remediate
+            read -p "Do you want to disable $protocol? (yes/no): " remediate
+            if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+                echo "install $protocol /bin/true" >> /etc/modprobe.d/CIS.conf
+                echo "[PASS] -- $protocol has been disabled."
+            else
+                echo "[FAILED] -- User refused to remediate $protocol."
+            fi
+        fi
+    done
+}
+
+disable_protocols
+
+
+#!/bin/bash
+
+restrict_su_access() {
+  local pam_su="/etc/pam.d/su"
+  local AUDITDIR="/path/to/audit/directory"  # Change this to your desired audit directory
+  local TIME=$(date +"%Y%m%d%H%M%S")
+
+  # Check if the PAM configuration file exists
+  if [ -e "$pam_su" ]; then
+    # Backup the original su PAM configuration file
+    cp "$pam_su" "$AUDITDIR/su_$TIME.bak"
+    echo "[DONE] -- Backed up the original su PAM configuration to $AUDITDIR/su_$TIME.bak"
+  else
+    echo "[ERROR] -- $pam_su does not exist. Cannot create a backup."
+    exit 1
+  fi
+
+  # Check if the required configuration line exists in su PAM file
+  if grep -qE "^auth[[:space:]]*required[[:space:]]*pam_wheel.so[[:space:]]*use_uid" "$pam_su"; then
+    echo "[PASS] -- Access to the root account via su is already restricted to the 'root' group."
+  else
+    # Ask the user if they want to remediate
+    read -p "Do you want to restrict access to the root account via su to the 'root' group? (yes/no): " remediate
+    if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+      # Find the line number of the first occurrence of the 'auth required pam_wheel.so use_uid' line
+      line_num=$(grep -nE "^auth[[:space:]]*required[[:space:]]*pam_wheel.so[[:space:]]*use_uid" "$pam_su" | cut -d: -f1)
+
+      if [ -n "$line_num" ]; then
+        # Insert the required configuration line after the found line number
+        sed -i "${line_num} a auth required pam_wheel.so use_uid" "$pam_su"
+        echo "[DONE] -- Added configuration to restrict su access to the 'root' group in $pam_su."
+      else
+        echo "[ERROR] -- Unable to locate the required configuration line in $pam_su."
+      fi
+    else
+      echo "[FAILED] -- User refused to remediate."
+    fi
+  fi
+}
+
+restrict_su_access
+
+
+#!/bin/bash
+
+ensure_nosuid_option() {
+    local fstab_file="/etc/fstab"
+    
+    # Check if /tmp partition already has 'nosuid' set
+    if grep -qE '^[[:space:]]*/tmp[[:space:]]' "$fstab_file" && ! grep -qE '^[[:space:]]*/tmp[[:space:]]' "$fstab_file" | grep -qE 'nosuid'; then
+        # Ask the user if they want to remediate for /tmp
+        read -p "The /tmp partition does not have 'nosuid' option set. Do you want to add 'nosuid' to /tmp? (yes/no): " remediate
+        if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+            # Add 'nosuid' to /tmp partition in /etc/fstab
+            sed -i -E 's|^[[:space:]]*/tmp[[:space:]]|/tmp /tmp tmpfs defaults,nosuid 0 0|' "$fstab_file"
+            echo "[DONE] -- Added 'nosuid' option to /tmp partition in $fstab_file."
+        else
+            echo "[FAILED] -- User refused to remediate for /tmp."
+        fi
+    else
+        echo "[PASS] -- 'nosuid' option is already set on /tmp partition."
+    fi
+    
+    # Check if /var/tmp partition already has 'nosuid' set
+    if grep -qE '^[[:space:]]*/var/tmp[[:space:]]' "$fstab_file" && ! grep -qE '^[[:space:]]*/var/tmp[[:space:]]' "$fstab_file" | grep -qE 'nosuid'; then
+        # Ask the user if they want to remediate for /var/tmp
+        read -p "The /var/tmp partition does not have 'nosuid' option set. Do you want to add 'nosuid' to /var/tmp? (yes/no): " remediate
+        if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+            # Add 'nosuid' to /var/tmp partition in /etc/fstab
+            sed -i -E 's|^[[:space:]]*/var/tmp[[:space:]]|/var/tmp /var/tmp none rw,nosuid,nodev 0 0|' "$fstab_file"
+            echo "[DONE] -- Added 'nosuid' option to /var/tmp partition in $fstab_file."
+        else
+            echo "[FAILED] -- User refused to remediate for /var/tmp."
+        fi
+    else
+        echo "[PASS] -- 'nosuid' option is already set on /var/tmp partition."
+    fi
+}
+
+ensure_nosuid_option
+
+#!/bin/bash
+
+ensure_core_dump_restriction() {
+    local limits_conf="/etc/security/limits.conf"
+    local sysctl_conf="/etc/sysctl.conf"
+    
+    # Check if 'hard core 0' is already set in /etc/security/limits.conf
+    if grep -qE '^[[:space:]]*\*.*hard[[:space:]]core[[:space:]]0' "$limits_conf"; then
+        echo "[PASS] -- Core dumps are already restricted in $limits_conf."
+    else
+        # Ask the user if they want to remediate in /etc/security/limits.conf
+        read -p "Core dumps are not restricted in $limits_conf. Do you want to add 'hard core 0' to $limits_conf? (yes/no): " remediate
+        if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+            echo '* hard core 0' >> "$limits_conf"
+            echo "[DONE] -- Added 'hard core 0' to $limits_conf to restrict core dumps."
+        else
+            echo "[FAILED] -- User refused to remediate in $limits_conf."
+        fi
+    }
+    
+    # Check if 'fs.suid_dumpable = 0' is already set in /etc/sysctl.conf
+    if grep -qE '^[[:space:]]*fs.suid_dumpable[[:space:]]*=[[:space:]]*0' "$sysctl_conf"; then
+        echo "[PASS] -- Core dumps are already restricted in $sysctl_conf."
+    else
+        # Ask the user if they want to remediate in /etc/sysctl.conf
+        read -p "Core dumps are not restricted in $sysctl_conf. Do you want to add 'fs.suid_dumpable = 0' to $sysctl_conf? (yes/no): " remediate
+        if [[ $remediate =~ ^[Yy][Ee][Ss]$ ]]; then
+            echo 'fs.suid_dumpable = 0' >> "$sysctl_conf"
+            echo "[DONE] -- Added 'fs.suid_dumpable = 0' to $sysctl_conf to restrict core dumps."
+        else
+            echo "[FAILED] -- User refused to remediate in $sysctl_conf."
+        fi
+    }
+}
+
+ensure_core_dump_restriction
